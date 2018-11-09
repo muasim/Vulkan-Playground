@@ -18,6 +18,8 @@ VK_INSTANCE_FUNCTION( vkGetPhysicalDeviceQueueFamilyProperties )
 VK_INSTANCE_FUNCTION( vkCreateDevice )
 VK_INSTANCE_FUNCTION( vkGetDeviceProcAddr )
 VK_INSTANCE_FUNCTION( vkDestroyInstance )
+VK_INSTANCE_FUNCTION( vkGetPhysicalDeviceSurfaceCapabilitiesKHR )
+VK_INSTANCE_FUNCTION( vkGetPhysicalDeviceSurfaceFormatsKHR )
 
 #undef VK_INSTANCE_FUNCTION
 

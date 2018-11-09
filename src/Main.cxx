@@ -133,12 +133,66 @@ int main()
     getVulkanFunctions(device);
 
     glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
-    GLFWwindow* window = glfwCreateWindow(640, 480, "Window Title", NULL, NULL);
+    WindowProperties &window_properties = WindowProperties::get_instance();
+    window_properties.width = 1280;
+    window_properties.height = 720;
+    window_properties.title = "Vulkan Test";
+
+    GLFWwindow* window = glfwCreateWindow(window_properties.width, 
+                                          window_properties.height,
+                                          window_properties.title, 
+                                          NULL, 
+                                          NULL);
     assert(nullptr != window);
-    glfwHideWindow(window);
 
     VkSurfaceKHR surface;
     vk_res = glfwCreateWindowSurface(instance, window, NULL, &surface);	
     assert(VK_SUCCESS == vk_res);
+
+    VkSurfaceCapabilitiesKHR surface_capabilities;
+    vkGetPhysicalDeviceSurfaceCapabilitiesKHR(physical_devices[0] , surface , &surface_capabilities );
+    assert(0 != surface_capabilities.minImageCount);
+
+    uint32_t image_count = surface_capabilities.minImageCount + 1;
+    if( (surface_capabilities.maxImageCount > 0) &&
+        (image_count > surface_capabilities.maxImageCount) ) 
+    {
+      image_count = surface_capabilities.maxImageCount;
+    }
+
+    uint32_t surface_format_count{};
+    vk_res = vkGetPhysicalDeviceSurfaceFormatsKHR(physical_devices[0] , surface , &surface_format_count , VK_NULL_HANDLE);
+    assert(VK_SUCCESS == vk_res);
+
+    vector<VkSurfaceFormatKHR> surface_formats(surface_format_count);
+    vk_res = vkGetPhysicalDeviceSurfaceFormatsKHR(physical_devices[0] , surface , &surface_format_count , surface_formats.data());
+    assert(VK_SUCCESS == vk_res);
+
+    surface_formats[0] = GetSwapChainFormat(surface_formats);
+
+    VkImageUsageFlags swapchain_image_flags = GetSwapChainUsageFlags(surface_capabilities);
+    
+    VkSemaphore semaphore;
+    VkSemaphoreCreateInfo semaphore_info = 
+    {
+        VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO,
+        VK_NULL_HANDLE,
+        0
+    };
+
+    vk_res = vkCreateSemaphore(device , &semaphore_info , VK_NULL_HANDLE , &semaphore);
+    assert(VK_SUCCESS == vk_res);
+
+    while (!glfwWindowShouldClose(window))
+    {
+        if( glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS)
+        {
+            break;
+        }
+        glfwPollEvents();
+    }
+
+    glfwTerminate();
+
     return 0;
 }
