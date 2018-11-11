@@ -42,13 +42,11 @@ VK_DEVICE_FUNCTION( vkQueueSubmit )
 VK_DEVICE_FUNCTION( vkFreeCommandBuffers )
 VK_DEVICE_FUNCTION( vkDestroyCommandPool )
 VK_DEVICE_FUNCTION( vkDestroySemaphore )
-#if defined(USE_SWAPCHAIN_EXTENSIONS)
 VK_DEVICE_FUNCTION( vkCreateSwapchainKHR )
 VK_DEVICE_FUNCTION( vkGetSwapchainImagesKHR )
 VK_DEVICE_FUNCTION( vkAcquireNextImageKHR )
 VK_DEVICE_FUNCTION( vkQueuePresentKHR )
 VK_DEVICE_FUNCTION( vkDestroySwapchainKHR )
-#endif
 
 VK_DEVICE_FUNCTION( vkCreateImageView )
 VK_DEVICE_FUNCTION( vkCreateRenderPass )

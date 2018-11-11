@@ -5,25 +5,24 @@
 
 #define NS_ARRAY_LENGTH(arr)  (sizeof(arr) / sizeof((arr)[0]))
 
-#ifndef VULKAN_H_
+#ifndef VK_NO_PROTOTYPES
     #define VK_NO_PROTOTYPES
-    #include <vulkan/vulkan.h>
-#endif 
-
-#ifndef _VECTOR_
-    #include <vector>
 #endif
+#include <vulkan/vulkan.h>
+
+#include <vector>
 
 struct WindowProperties
 {
-    static WindowProperties& get_instance()
-    {
-        static WindowProperties instance;
-        return instance;
-    }
-    uint16_t height;
-    uint16_t width;
-    char *title; 
+    static WindowProperties& get_instance();
+    static uint32_t getHeight(); 
+    static void setHeight(uint32_t height); 
+    static uint32_t getWidth();
+    static void setWidth(uint32_t width); 
+    static char* getTitle();
+    static void setTitle(char* const title);
+    static VkExtent2D getDimensionExtent();
+
     // The copy constructor is deleted, to prevent client code from creating new
     // instances of this class by copying the instance returned by get_instance()
     WindowProperties(WindowProperties const&) = delete;
@@ -34,13 +33,16 @@ struct WindowProperties
     WindowProperties(WindowProperties&&) = delete;
 
 private:
+    static VkExtent2D ext2d_dimension;
+    static char *title; 
 
     // Default-constructor is private, to prevent client code from creating new
     // instances of this class. The only instance shall be retrieved through the
     // get_instance() function.
-    WindowProperties() { }
+    WindowProperties();
 
 };
 
-VkSurfaceFormatKHR GetSwapChainFormat( std::vector<VkSurfaceFormatKHR> &surface_formats );
-VkImageUsageFlags GetSwapChainUsageFlags( VkSurfaceCapabilitiesKHR &surface_capabilities );
+VkSurfaceFormatKHR getSwapChainFormat( std::vector<VkSurfaceFormatKHR> &surface_formats );
+VkImageUsageFlags getSwapChainUsageFlags( VkSurfaceCapabilitiesKHR &surface_capabilities );
+VkCompositeAlphaFlagBitsKHR getSupportedSwapchainFlagBit(VkCompositeAlphaFlagsKHR &supported_flag_bits);
