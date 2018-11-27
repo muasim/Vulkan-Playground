@@ -26,3 +26,15 @@ cmake_uninstall.cmake
 
 # Visual Code 
 .vscode/
+
+# Dependencies
+glfw/
+bin/
+lib/
+tools/
+whereami/
+
+# ResInit Tool Output
+TimestampCache.csv
+
+

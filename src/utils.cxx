@@ -1,5 +1,6 @@
 #include "utils.hxx"
 #include <iostream>
+#include <fstream>
 
 VkExtent2D WindowProperties::ext2d_dimension;
 char* WindowProperties::title;
@@ -94,4 +95,33 @@ VkCompositeAlphaFlagBitsKHR getSupportedSwapchainFlagBit(VkCompositeAlphaFlagsKH
     {
         if (supported_flag_bits & compositeAlphaFlags[i]) return compositeAlphaFlags[i];  
     }
+}
+#include <direct.h>
+std::vector<char> GetBinaryFileContents( std::string const &filename ) 
+{
+    std::ifstream file( filename, std::ios::binary | std::ios::in );
+    if( file.fail() ) 
+    {
+
+        std::cout << "Could not open \"" << filename << "\" file!" << std::endl;
+        char* buffer;
+        if( (buffer = _getcwd( NULL, 0 )) == NULL ) perror( "_getcwd error" );
+        else
+        {
+            printf( "%s \n", buffer);
+            delete[] buffer;
+        }
+        return std::vector<char>();
+    }
+
+    std::streampos begin, end;
+    begin = file.tellg();
+    file.seekg( 0, std::ios::end );
+    end = file.tellg();
+    std::vector<char> result( static_cast<size_t>(end - begin) );
+    file.seekg( 0, std::ios::beg );
+    file.read( &result[0], end - begin );
+    file.close();
+
+    return result;
 }
