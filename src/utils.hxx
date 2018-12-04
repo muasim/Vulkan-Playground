@@ -44,7 +44,7 @@ private:
 
 };
 
-VkSurfaceFormatKHR getSwapChainFormat( std::vector<VkSurfaceFormatKHR> &surface_formats );
-VkImageUsageFlags getSwapChainUsageFlags( VkSurfaceCapabilitiesKHR &surface_capabilities );
-VkCompositeAlphaFlagBitsKHR getSupportedSwapchainFlagBit(VkCompositeAlphaFlagsKHR &supported_flag_bits);
+VkSurfaceFormatKHR getSwapChainFormat( const std::vector<VkSurfaceFormatKHR> &surface_formats );
+VkImageUsageFlags getSwapChainUsageFlags( const VkSurfaceCapabilitiesKHR &surface_capabilities );
+VkCompositeAlphaFlagBitsKHR getSupportedSwapchainFlagBit( const VkCompositeAlphaFlagsKHR &supported_flag_bits);
 std::vector<char> GetBinaryFileContents( std::string const &filename );

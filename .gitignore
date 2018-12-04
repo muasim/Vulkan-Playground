@@ -37,4 +37,9 @@ whereami/
 # ResInit Tool Output
 TimestampCache.csv
 
+# VS Build Files
+*.db
+
+# Validation Layer Settings
+vk_layer_settings.txt
 

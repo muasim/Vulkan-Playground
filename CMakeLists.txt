@@ -19,7 +19,9 @@ set_target_properties(${PROJECT_NAME} PROPERTIES LINKER_LANGUAGE CXX)
 target_sources(${PROJECT_NAME} PRIVATE 
 src/Main.cxx
 src/utils.cxx
-src/VulkanFunctions.cxx)
+src/VulkanFunctions.cxx
+src/Vulkan.cxx
+src/Window.cxx)
 
 
 include(${CMAKE_ROOT}/Modules/ExternalProject.cmake)
@@ -53,14 +55,18 @@ ExternalProject_Add(GLFW
                     CMAKE_GENERATOR ${CMAKE_GENERATOR}
                     CMAKE_CACHE_ARGS ${GLFW_ARGS}
                     )
-
 add_dependencies(${PROJECT_NAME} GLFW)
-find_library(GLFW_LIB_PATH "glfw3dll" HINTS ${CMAKE_LIBRARY_OUTPUT_DIRECTORY})
-add_library(GLFW_LIB SHARED IMPORTED)
-set_target_properties(GLFW_LIB PROPERTIES IMPORTED_LOCATION "${GLFW_LIB_PATH}")
-target_link_libraries(${PROJECT_NAME} ${GLFW_LIB} )
 
-
+add_library(glfw_lib SHARED IMPORTED)
+set_target_properties(glfw_lib PROPERTIES IMPORTED_LOCATION ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/glfw3.dll)
+# set_target_properties(glfw_lib PROPERTIES IMPORTED_LOCATION ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/libglfw3dll.a)
+set_target_properties(glfw_lib PROPERTIES IMPORTED_OBJECTS ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/libglfw3dll.a)
+set_target_properties(glfw_lib PROPERTIES IMPORTED_IMPLIB ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/libglfw3dll.a)
+target_link_libraries(${PROJECT_NAME} glfw_lib)
+get_target_property(ds ${PROJECT_NAME} LINK_LIBRARIES)
+get_target_property(df glfw_lib IMPORTED_LOCATION)
+message(${ds})
+message(${df})
 # set(SCRIPT_NAME ${CMAKE_SOURCE_DIR}/InitResources.cmake)
 
 # set_target_properties(glfw3 PROPERTIES IMPORTED_LOCATION "${GLFW3_LIB}")

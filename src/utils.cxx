@@ -41,7 +41,7 @@ WindowProperties::WindowProperties() { }
 
 
 
-VkSurfaceFormatKHR getSwapChainFormat( std::vector<VkSurfaceFormatKHR> &surface_formats ) 
+VkSurfaceFormatKHR getSwapChainFormat( const std::vector<VkSurfaceFormatKHR> &surface_formats ) 
 {
     // If the list contains only one entry with undefined format
     // it means that there are no preferred surface formats and any can be chosen
@@ -52,7 +52,7 @@ VkSurfaceFormatKHR getSwapChainFormat( std::vector<VkSurfaceFormatKHR> &surface_
 
     // Check if list contains most widely used R8 G8 B8 A8 format
     // with nonlinear color space
-    for( VkSurfaceFormatKHR &surface_format : surface_formats ) {
+    for( auto& surface_format : surface_formats ) {
         if( surface_format.format == VK_FORMAT_R8G8B8A8_UNORM ) {
         return surface_format;
         }
@@ -62,7 +62,7 @@ VkSurfaceFormatKHR getSwapChainFormat( std::vector<VkSurfaceFormatKHR> &surface_
 return surface_formats[0];
 }
 
-VkImageUsageFlags getSwapChainUsageFlags( VkSurfaceCapabilitiesKHR &surface_capabilities ) {
+VkImageUsageFlags getSwapChainUsageFlags(const VkSurfaceCapabilitiesKHR &surface_capabilities ) {
     // Color attachment flag must always be supported
     // We can define other usage flags but we always need to check if they are supported
     if( surface_capabilities.supportedUsageFlags & VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT ) {
@@ -82,7 +82,7 @@ VkImageUsageFlags getSwapChainUsageFlags( VkSurfaceCapabilitiesKHR &surface_capa
     return static_cast<VkImageUsageFlags>(-1);
   }
 
-VkCompositeAlphaFlagBitsKHR getSupportedSwapchainFlagBit(VkCompositeAlphaFlagsKHR &supported_flag_bits)
+VkCompositeAlphaFlagBitsKHR getSupportedSwapchainFlagBit(const VkCompositeAlphaFlagsKHR &supported_flag_bits)
 {
     // Find a supported composite alpha mode - one of these is guaranteed to be set
     VkCompositeAlphaFlagBitsKHR compositeAlphaFlags[4] = {

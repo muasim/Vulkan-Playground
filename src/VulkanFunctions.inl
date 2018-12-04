@@ -20,7 +20,8 @@ VK_INSTANCE_FUNCTION( vkGetDeviceProcAddr )
 VK_INSTANCE_FUNCTION( vkDestroyInstance )
 VK_INSTANCE_FUNCTION( vkGetPhysicalDeviceSurfaceCapabilitiesKHR )
 VK_INSTANCE_FUNCTION( vkGetPhysicalDeviceSurfaceFormatsKHR )
-
+VK_INSTANCE_FUNCTION( vkGetPhysicalDeviceMemoryProperties )
+VK_INSTANCE_FUNCTION( vkEnumerateDeviceExtensionProperties )
 #undef VK_INSTANCE_FUNCTION
 
 #ifndef VK_DEVICE_FUNCTION
@@ -47,7 +48,7 @@ VK_DEVICE_FUNCTION( vkGetSwapchainImagesKHR )
 VK_DEVICE_FUNCTION( vkAcquireNextImageKHR )
 VK_DEVICE_FUNCTION( vkQueuePresentKHR )
 VK_DEVICE_FUNCTION( vkDestroySwapchainKHR )
-
+VK_DEVICE_FUNCTION( vkGetFenceStatus )
 VK_DEVICE_FUNCTION( vkCreateImageView )
 VK_DEVICE_FUNCTION( vkCreateRenderPass )
 VK_DEVICE_FUNCTION( vkCreateFramebuffer )
