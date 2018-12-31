@@ -3,18 +3,18 @@ cmake_minimum_required(VERSION 3.12)
 set(CMAKE_CXX_STANDARD 11)
 
 project(IntelVulkan C CXX)
-include_directories("${CMAKE_SOURCE_DIR}/include")
-# Set the output folder where your program will be created
-set(CMAKE_BINARY_DIR ${CMAKE_SOURCE_DIR}/bin)
+
+set(CMAKE_BINARY_DIR ${CMAKE_SOURCE_DIR}/build)
+set(DEPENDENCY_PATH ${CMAKE_SOURCE_DIR}/deps)
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR})
-set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_SOURCE_DIR}/lib)
-set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_SOURCE_DIR}/lib)
+set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/libs)
+set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/libs)
 link_directories(${LIBRARY_OUTPUT_PATH})
 set(TOOLS_PATH ${CMAKE_SOURCE_DIR}/tools)
 set(RESOURCES_PATH ${CMAKE_SOURCE_DIR}/resources CACHE FILEPATH "Filepath to the Resources folder." FORCE)
 set(SHADERS_PATH ${RESOURCES_PATH}/shaders)
 
-add_executable(${PROJECT_NAME} ${all_SRCS})
+add_executable(${PROJECT_NAME})
 set_target_properties(${PROJECT_NAME} PROPERTIES LINKER_LANGUAGE CXX)
 target_sources(${PROJECT_NAME} PRIVATE 
 src/Main.cxx
@@ -23,53 +23,34 @@ src/VulkanFunctions.cxx
 src/Vulkan.cxx
 src/Window.cxx)
 
-
-include(${CMAKE_ROOT}/Modules/ExternalProject.cmake)
-
-add_library(whereami STATIC ${CMAKE_SOURCE_DIR}/whereami/whereami++.cpp)
+add_library(whereami STATIC ${DEPENDENCY_PATH}/whereami/src/whereami++.cpp)
+#MinGW workaround to set minimum required windows version
 if(WIN32)
-    target_compile_definitions( whereami PUBLIC _WIN32_WINNT=_WIN32_WINNT_WINXP  )
+target_compile_definitions( whereami PUBLIC _WIN32_WINNT=_WIN32_WINNT_WINXP)
 endif()
 target_link_libraries(${PROJECT_NAME} whereami)
 add_dependencies(${PROJECT_NAME} whereami)
+include_directories(${DEPENDENCY_PATH}/whereami/src)
 
-add_subdirectory(ResourceInitializer)
+set(BUILD_SHARED_LIBS ON CACHE BOOLEAN "Build Shared Files" FORCE)
+set(GLFW_BUILD_EXAMPLES OFF CACHE BOOLEAN "GLFW Example Option" FORCE)
+set(GLFW_BUILD_TESTS OFF CACHE BOOLEAN "GLFW Tests Option" FORCE)
+set(GLFW_BUILD_DOCS OFF CACHE BOOLEAN "GLFW Docs Option" FORCE)
+set(GLFW_VULKAN_STATIC OFF CACHE BOOLEAN "GLFW Vulkan Static Option" FORCE)
+set(GLFW_USE_HYBRID_HPG ON CACHE BOOLEAN "GLFW Force Hybrid Option" FORCE)
+set(GLFW_INSTALL OFF CACHE BOOLEAN "GLFW Install Option" FORCE)
 
-set(GLFW_SRC_DIR "C:/Users/Lenovo/Documents/SdksNLibs/OpenGL/glfw")
-set(GLFW_ARGS -DCMAKE_RUNTIME_OUTPUT_DIRECTORY:STRING=${CMAKE_RUNTIME_OUTPUT_DIRECTORY}
-              -DCMAKE_LIBRARY_OUTPUT_DIRECTORY:STRING=${CMAKE_LIBRARY_OUTPUT_DIRECTORY}
-              -DCMAKE_ARCHIVE_OUTPUT_DIRECTORY:STRING=${CMAKE_ARCHIVE_OUTPUT_DIRECTORY}
-              -DBUILD_SHARED_LIBS:BOOL=ON 
-              -DGLFW_BUILD_EXAMPLES:BOOL=OFF 
-              -DGLFW_BUILD_TESTS:BOOL=OFF 
-              -DGLFW_BUILD_DOCS:BOOL=OFF 
-              -DGLFW_VULKAN_STATIC:BOOL=OFF 
-              -DGLFW_USE_HYBRID_HPG:BOOL=ON 
-              -DGLFW_INSTALL:BOOL=OFF)
+add_subdirectory(${DEPENDENCY_PATH}/GLFW)
+target_link_libraries(${PROJECT_NAME} glfw)
+set(BUILD_SHARED_LIBS OFF CACHE BOOLEAN "Build Shared Files" FORCE)
+include_directories(${DEPENDENCY_PATH}/glfw/include)
 
-ExternalProject_Add(GLFW 
-                    DOWNLOAD_COMMAND URL ${GLFW_SRC_DIR}
-                    PREFIX ${CMAKE_SOURCE_DIR}/glfw
-                    INSTALL_COMMAND ""
-                    BINARY_DIR ${CMAKE_SOURCE_DIR}/glfw/bin
-                    CMAKE_GENERATOR ${CMAKE_GENERATOR}
-                    CMAKE_CACHE_ARGS ${GLFW_ARGS}
-                    )
-add_dependencies(${PROJECT_NAME} GLFW)
-
-add_library(glfw_lib SHARED IMPORTED)
-set_target_properties(glfw_lib PROPERTIES IMPORTED_LOCATION ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/glfw3.dll)
-# set_target_properties(glfw_lib PROPERTIES IMPORTED_LOCATION ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/libglfw3dll.a)
-set_target_properties(glfw_lib PROPERTIES IMPORTED_OBJECTS ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/libglfw3dll.a)
-set_target_properties(glfw_lib PROPERTIES IMPORTED_IMPLIB ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/libglfw3dll.a)
-target_link_libraries(${PROJECT_NAME} glfw_lib)
-get_target_property(ds ${PROJECT_NAME} LINK_LIBRARIES)
-get_target_property(df glfw_lib IMPORTED_LOCATION)
-message(${ds})
-message(${df})
-# set(SCRIPT_NAME ${CMAKE_SOURCE_DIR}/InitResources.cmake)
-
-# set_target_properties(glfw3 PROPERTIES IMPORTED_LOCATION "${GLFW3_LIB}")
+include(FindVulkan)
+if(Vulkan_FOUND)
+    include_directories(${Vulkan_INCLUDE_DIRS})
+else()
+    message("Vulkan not found!")
+endif()
 
 # file(GLOB all_SRCS "${CMAKE_SOURCE_DIR}/src/*.cxx")
 # add the executable
@@ -85,10 +66,3 @@ message(${df})
 # add_dependencies(${PROJECT_NAME} InitResources)
 
 
-
-include(FindVulkan)
-if(Vulkan_FOUND)
-    include_directories(${Vulkan_INCLUDE_DIRS})
-else()
-    message("Vulkan not found!")
-endif()

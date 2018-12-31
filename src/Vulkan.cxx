@@ -2,6 +2,8 @@
 
 #include <assert.h>
 #include <chrono>
+#include <array>
+#include <functional>
 
 #include "VulkanFunctions.hxx"
 #include "utils.hxx"
@@ -26,6 +28,15 @@ const Vulkan::PhysicalDevice& Vulkan::getCurrentPhysicalDevice(void) const { ret
 const Vulkan::SwapchainKHR& Vulkan::getSwapchainKHR(void) const { return this->swapchain; }
 
 const VkPhysicalDevice& Vulkan::PhysicalDevice::getDevice(void) const  { return this->device; }
+const VkPhysicalDeviceMemoryProperties& Vulkan::PhysicalDevice::getDeviceMemoryProperties(void) 
+{
+    // If it is not initializied;
+    if(0 == this->memory_properties.memoryHeapCount)
+    {
+        vkGetPhysicalDeviceMemoryProperties(this->device , &this->memory_properties);
+    }
+    return this->memory_properties;
+}
 const VkPhysicalDeviceProperties& Vulkan::PhysicalDevice::getDeviceProperties(void) const { return this->properties; }
 const std::vector<VkQueueFamilyProperties>& Vulkan::PhysicalDevice::getQueueFamilyProperties(void) const { return this->queue_family_properties; }
 const uint32_t& Vulkan::PhysicalDevice::getQueueFamilyIndex(void) const { return this->queue_family_index; }
@@ -45,7 +56,9 @@ Vulkan::Vulkan(VkApplicationInfo& application_info)
     glfw_res = glfwVulkanSupported();
     assert(GLFW_TRUE == glfw_res);
     
+    std::cout << &vkCreateInstance << std::endl;
     this->getVulkanFunctions();	
+    std::cout << &vkCreateInstance << std::endl;
 
 	std::vector<char*> instance_layers;
 	instance_layers.push_back("VK_LAYER_LUNARG_standard_validation");
@@ -67,16 +80,15 @@ Vulkan::Vulkan(VkApplicationInfo& application_info)
         VK_NULL_HANDLE,
         0,
         &application_info,
-        instance_layers.size(),
+        1,
         &instance_layers[0],
         instance_extensions.size(),
         &instance_extensions[0]
     };
-     
-    VkResult vk_res = vkCreateInstance( &instance_info, VK_NULL_HANDLE, &(this->instance));
-    assert(VK_SUCCESS == vk_res);
 
-    getVulkanFunctions(instance);
+    VkResult vk_res = vkCreateInstance( &instance_info, VK_NULL_HANDLE, &this->instance);
+    assert(VK_SUCCESS == vk_res);
+    getVulkanFunctions(this->instance);
 
     uint32_t physical_device_count;
     vk_res = vkEnumeratePhysicalDevices(this->instance , &physical_device_count , VK_NULL_HANDLE  );
@@ -162,8 +174,10 @@ void Vulkan::createLogicalDevice(uint32_t physical_device_index)
 }
 void Vulkan::createSwapchain(GLFWwindow * window , uint32_t width , uint32_t height)
 {
-    std::cout << &vkEnumeratePhysicalDevices << std::endl;
     this->getVulkanFunctions(this->logical_device.getDevice());
+    this->swapchain.hwindow = window;
+    this->swapchain.swapchain_image_size.width = width;
+    this->swapchain.swapchain_image_size.height = height;
     VkResult vk_res = glfwCreateWindowSurface(this->instance , window , VK_NULL_HANDLE , &this->logical_device.surface);
     assert(VK_SUCCESS == vk_res);
 
@@ -215,7 +229,7 @@ void Vulkan::createSwapchain(GLFWwindow * window , uint32_t width , uint32_t hei
     };
     vkCreateSwapchainKHR(this->logical_device.getDevice() , &swapchain_info , VK_NULL_HANDLE , &this->swapchain.swapchain);
 
-    this->swapchain.images.resize(2);
+	this->swapchain.images.resize(swapchain_info.minImageCount);
     vkGetSwapchainImagesKHR(this->logical_device.getDevice() , this->swapchain.swapchain , &swapchain_info.minImageCount , this->swapchain.images.data());
 
     VkImageSubresourceRange subresource_range = 
@@ -243,17 +257,16 @@ void Vulkan::createSwapchain(GLFWwindow * window , uint32_t width , uint32_t hei
         },
         subresource_range
     };
-
-    this->swapchain.imageviews.resize(2);
+	this->swapchain.image_views.resize(swapchain_info.minImageCount);
     for(uint32_t i = 0; i < swapchain_info.minImageCount; i++)
     {
-        swapchain_imageview_info.image = this->swapchain.images[i];
-        vk_res = vkCreateImageView(this->logical_device.getDevice() , &swapchain_imageview_info , VK_NULL_HANDLE , &this->swapchain.imageviews[i] );
-        assert(VK_SUCCESS == vk_res);
+		swapchain_imageview_info.image = this->swapchain.images[i];
+		vk_res = vkCreateImageView(this->logical_device.getDevice() , &swapchain_imageview_info , VK_NULL_HANDLE , &this->swapchain.image_views[i]);
+		assert(VK_SUCCESS == vk_res);
     }
 }
 
-void Vulkan::createRenderPass(uint32_t width , uint32_t height)
+void Vulkan::createRenderPass()
 {
     VkAttachmentDescription description =
     {
@@ -267,7 +280,6 @@ void Vulkan::createRenderPass(uint32_t width , uint32_t height)
         VK_IMAGE_LAYOUT_UNDEFINED,
         VK_IMAGE_LAYOUT_PRESENT_SRC_KHR,
     };
-
     VkAttachmentReference attachment_reference =
     {
         0,
@@ -311,15 +323,15 @@ void Vulkan::createRenderPass(uint32_t width , uint32_t height)
         this->logical_device.render_pass,
         1,
         VK_NULL_HANDLE,
-        width,
-        height,
+        this->getSwapchainKHR().swapchain_image_size.width,
+        this->getSwapchainKHR().swapchain_image_size.height,
         1
     };
     
     this->logical_device.frame_buffers.resize(this->getSwapchainKHR().images.size());
     for(uint32_t i = 0; i < this->getSwapchainKHR().images.size(); i++)
     {
-        frame_buffer_info.pAttachments = this->getSwapchainKHR().imageviews.data() + i;
+        frame_buffer_info.pAttachments = &this->getSwapchainKHR().image_views[i];
         vk_res = vkCreateFramebuffer(this->logical_device.getDevice() , &frame_buffer_info , VK_NULL_HANDLE , &this->logical_device.frame_buffers[i] );
         assert(VK_SUCCESS == vk_res);
     }
@@ -365,7 +377,6 @@ void Vulkan::createGraphicsPipeline(std::string source_dir_path , uint32_t width
     shader_stages[1].pName =  shader_frag_name.c_str();
     shader_stages[1].pSpecializationInfo = VK_NULL_HANDLE;
     
-
     float vertex_data[] =
     {
         -0.7f, -0.7f, 0.0f, 1.0f,
@@ -381,68 +392,34 @@ void Vulkan::createGraphicsPipeline(std::string source_dir_path , uint32_t width
         0.3f, 0.3f, 0.3f, 0.0f
     };
 
-    VkBufferCreateInfo vertex_buffer_info = 
-    {
-        VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO,
-        VK_NULL_HANDLE,
-        0,
-        sizeof(vertex_data),
-        VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
-        VK_SHARING_MODE_EXCLUSIVE,
-        0,
-        VK_NULL_HANDLE
-    };
-    vk_res = vkCreateBuffer(this->logical_device.getDevice() , &vertex_buffer_info , VK_NULL_HANDLE , &this->logical_device.vertex_buffer );
+    this->logical_device.vertex_buffer = 
+        this->createBuffer(VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
+                                      VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
+                                      sizeof(vertex_data));
+
+    this->staging_buffer = 
+        this->createBuffer(VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+                                      VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT,
+                                      4000);
+
+
+    void *staging_buffer_memory_pointer;
+    vk_res = vkMapMemory(this->logical_device.getDevice() , this->staging_buffer.memory , 0 , sizeof(vertex_data) , 0 , &staging_buffer_memory_pointer);
     assert(VK_SUCCESS == vk_res);
 
-    VkMemoryRequirements vertex_buffer_memory_requirements;
-    vkGetBufferMemoryRequirements( this->logical_device.getDevice() ,  this->logical_device.vertex_buffer , &vertex_buffer_memory_requirements );
-    assert(0 != vertex_buffer_memory_requirements.memoryTypeBits);
-
-    VkPhysicalDeviceMemoryProperties memory_properties;
-    vkGetPhysicalDeviceMemoryProperties( this->getCurrentPhysicalDevice().getDevice() , &memory_properties );
-    assert(0 !=memory_properties.memoryHeapCount);
-    
-
-    VkDeviceMemory vertex_buffer_memory;
-    vk_res = VK_RESULT_MAX_ENUM;
-    for( uint32_t i = 0; i < memory_properties.memoryTypeCount; ++i ) 
-    {
-        if( (vertex_buffer_memory_requirements.memoryTypeBits & (1 << i)) &&
-            (memory_properties.memoryTypes[i].propertyFlags & VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT) ) 
-        {
-            VkMemoryAllocateInfo memory_allocate_info = 
-            {
-                VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO,
-                nullptr,
-                vertex_buffer_memory_requirements.size,
-                i
-            };
-            vk_res = vkAllocateMemory( this->logical_device.getDevice() , &memory_allocate_info, nullptr, &vertex_buffer_memory );
-            break;
-        }
-    }
-    assert(VK_SUCCESS == vk_res);
-
-    vkBindBufferMemory(this->logical_device.logical_device , this->logical_device.vertex_buffer , vertex_buffer_memory , 0);
-
-    void *vertex_buffer_data;
-    vk_res = vkMapMemory(this->logical_device.getDevice() , vertex_buffer_memory , 0 , VK_WHOLE_SIZE , 0 , &vertex_buffer_data);
-    assert(VK_SUCCESS == vk_res);
-
-    memcpy(vertex_buffer_data , vertex_data , sizeof(vertex_data));
+    memcpy(staging_buffer_memory_pointer , vertex_data , sizeof(vertex_data));
 
     VkMappedMemoryRange flush_range = 
     {
         VK_STRUCTURE_TYPE_MAPPED_MEMORY_RANGE,
         VK_NULL_HANDLE,
-        vertex_buffer_memory,
+        this->staging_buffer.memory,
         0,
         sizeof(vertex_data),
     };
     vk_res = vkFlushMappedMemoryRanges(this->logical_device.getDevice() , 1 , &flush_range);
     assert(VK_SUCCESS == vk_res);
-    vkUnmapMemory(this->logical_device.getDevice() , vertex_buffer_memory);
+    vkUnmapMemory(this->logical_device.getDevice() , this->staging_buffer.memory);
 
     std::vector<VkVertexInputBindingDescription> vertex_binding_descriptions = 
     {
@@ -614,7 +591,7 @@ void Vulkan::createCommandBuffer()
     {
         VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO,
         VK_NULL_HANDLE,
-        VK_COMMAND_POOL_CREATE_TRANSIENT_BIT  ,
+        VK_COMMAND_POOL_CREATE_TRANSIENT_BIT | VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT ,
         this->getCurrentPhysicalDevice().queue_family_index
     };
 
@@ -628,36 +605,91 @@ void Vulkan::createCommandBuffer()
         VK_NULL_HANDLE,
         cmd_pool,
         VK_COMMAND_BUFFER_LEVEL_PRIMARY,
-        1
+        this->swapchain.surface_capabilities.minImageCount + 1 // +1 for staging_buffer
     };
 
-    vk_res = vkAllocateCommandBuffers(this->logical_device.logical_device , &cmd_buffer_info , &this->logical_device.cmd_buffer);
+	this->logical_device.cmd_buffers.resize(cmd_buffer_info.commandBufferCount);
+    vk_res = vkAllocateCommandBuffers(this->logical_device.logical_device , &cmd_buffer_info , this->logical_device.cmd_buffers.data());
     assert(VK_SUCCESS == vk_res);
+
+    // Prepare command buffer to copy data from staging buffer to a vertex buffer
+    VkCommandBufferBeginInfo command_buffer_begin_info = 
+    {
+      VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
+      nullptr,
+      VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT,
+      nullptr
+    };
+
+    VkCommandBuffer command_buffer = this->logical_device.cmd_buffers.back();
+
+    vkBeginCommandBuffer( command_buffer, &command_buffer_begin_info);
+
+    VkBufferCopy buffer_copy_info = {
+      0,
+      0,
+      this->logical_device.vertex_buffer.size
+    };
+    vkCmdCopyBuffer( command_buffer, this->staging_buffer.buffer, this->logical_device.vertex_buffer.buffer, 1, &buffer_copy_info );
+
+    VkBufferMemoryBarrier buffer_memory_barrier = {
+      VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER,
+      nullptr,
+      VK_ACCESS_MEMORY_WRITE_BIT,
+      VK_ACCESS_VERTEX_ATTRIBUTE_READ_BIT,
+      VK_QUEUE_FAMILY_IGNORED,
+      VK_QUEUE_FAMILY_IGNORED,
+      this->logical_device.vertex_buffer.buffer, 
+      0,
+      VK_WHOLE_SIZE
+    };
+    vkCmdPipelineBarrier( command_buffer, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_VERTEX_INPUT_BIT, 0, 0, nullptr, 1, &buffer_memory_barrier, 0, nullptr );
+
+    vkEndCommandBuffer( command_buffer );
+
+    // Submit command buffer and copy data from staging buffer to a vertex buffer
+    VkSubmitInfo submit_info = {
+      VK_STRUCTURE_TYPE_SUBMIT_INFO,
+      nullptr,
+      0,
+      nullptr,
+      nullptr,
+      1,
+      &command_buffer,
+      0,
+      nullptr
+    };
+
+    VkQueue queue;
+    vkGetDeviceQueue(this->logical_device.logical_device , this->getCurrentPhysicalDevice().queue_family_index , 0 , &queue );
+
+    vk_res = vkQueueSubmit( queue , 1, &submit_info, VK_NULL_HANDLE );
+    assert(VK_SUCCESS == vk_res);
+
+    vkDeviceWaitIdle( this->logical_device.getDevice() );
 }
 
-
-static VKAPI_ATTR VkBool32 VKAPI_CALL debugCallback(
-	VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,
-	VkDebugUtilsMessageTypeFlagsEXT messageType,
-	const VkDebugUtilsMessengerCallbackDataEXT* pCallbackData,
-	void* pUserData) {
-
-	std::cerr << "validation layer: " << pCallbackData->pMessage << std::endl;
-
-	return VK_FALSE;
-}
-
+int queued_count = 0;
 void Vulkan::prepareRendering(GLFWwindow *window , uint32_t width , uint32_t height)
 {
-       VkSemaphoreCreateInfo semaphore_info = 
+	VkResult vk_res;
+    VkSemaphoreCreateInfo semaphore_info = 
     {
         VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO,
         VK_NULL_HANDLE,
         0
     };
-    VkSemaphore semaphore_rendering_finished;
-    VkResult vk_res = vkCreateSemaphore(this->logical_device.logical_device , &semaphore_info , VK_NULL_HANDLE , &semaphore_rendering_finished);
-    assert(VK_SUCCESS == vk_res);
+    std::vector<VkSemaphore> semaphores_rendering_finished(this->swapchain.surface_capabilities.minImageCount);
+	for (size_t i = 0; i < this->swapchain.surface_capabilities.minImageCount; i++)
+	{
+		vk_res = vkCreateSemaphore(this->logical_device.logical_device , &semaphore_info , VK_NULL_HANDLE , &semaphores_rendering_finished[i]);
+		assert(VK_SUCCESS == vk_res);
+	}
+
+	VkSemaphore semaphore_image_acquired;
+	vk_res = vkCreateSemaphore(this->logical_device.logical_device, &semaphore_info, VK_NULL_HANDLE, &semaphore_image_acquired);
+	assert(VK_SUCCESS == vk_res);
+
 
     VkQueue queue;
     vkGetDeviceQueue(this->logical_device.logical_device , this->getCurrentPhysicalDevice().queue_family_index , 0 , &queue );
@@ -668,7 +700,7 @@ void Vulkan::prepareRendering(GLFWwindow *window , uint32_t width , uint32_t hei
     {
         VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
         VK_NULL_HANDLE,
-        VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT,
+		0 ,
         VK_NULL_HANDLE
     };
 
@@ -681,13 +713,13 @@ void Vulkan::prepareRendering(GLFWwindow *window , uint32_t width , uint32_t hei
     VkSubmitInfo submit_info = {
       VK_STRUCTURE_TYPE_SUBMIT_INFO,
       VK_NULL_HANDLE,
-      0,
-      VK_NULL_HANDLE,
+      1,
+      &semaphore_image_acquired,
       &wait_dst_stage_mask,
       1,
-      &this->logical_device.cmd_buffer,
+      &this->logical_device.cmd_buffers[0],
       1,
-      &semaphore_rendering_finished
+      &semaphores_rendering_finished[0]
     };
 
     VkResult vk_present_res;
@@ -696,7 +728,7 @@ void Vulkan::prepareRendering(GLFWwindow *window , uint32_t width , uint32_t hei
         VK_STRUCTURE_TYPE_PRESENT_INFO_KHR,
         VK_NULL_HANDLE,
         1,
-        &semaphore_rendering_finished,
+        &semaphores_rendering_finished[0],
         1,
         &this->swapchain.swapchain,
         &swapchain_available_image_index,
@@ -731,37 +763,93 @@ void Vulkan::prepareRendering(GLFWwindow *window , uint32_t width , uint32_t hei
         }
         glfwPollEvents();
 
-        vk_res = vkAcquireNextImageKHR(this->logical_device.logical_device , this->swapchain.swapchain , UINT64_MAX , VK_NULL_HANDLE , VK_NULL_HANDLE , &swapchain_available_image_index);
+        vk_res = vkAcquireNextImageKHR(this->logical_device.logical_device , this->swapchain.swapchain , UINT64_MAX , semaphore_image_acquired , VK_NULL_HANDLE , &swapchain_available_image_index);
         assert(VK_SUCCESS == vk_res);
 
-        render_pass_begin_info.framebuffer = this->logical_device.frame_buffers[swapchain_available_image_index];
-        present_info.pImageIndices = &swapchain_available_image_index;
-        vkBeginCommandBuffer(this->logical_device.cmd_buffer , &cmd_buffer_begin_info);
+		VkCommandBuffer *cmd_buffer = &this->logical_device.cmd_buffers[swapchain_available_image_index];
+		if (queued_count != this->swapchain.surface_capabilities.minImageCount)
+		{			
+			vkBeginCommandBuffer(*cmd_buffer , &cmd_buffer_begin_info);
 
-        vkCmdBeginRenderPass( this->logical_device.cmd_buffer, &render_pass_begin_info, VK_SUBPASS_CONTENTS_INLINE );
+			render_pass_begin_info.framebuffer = this->logical_device.frame_buffers[swapchain_available_image_index];
 
-        vkCmdBindPipeline( this->logical_device.cmd_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, this->logical_device.pipeline );
+			vkCmdBeginRenderPass(*cmd_buffer, &render_pass_begin_info, VK_SUBPASS_CONTENTS_INLINE );
+
+			vkCmdBindPipeline(*cmd_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, this->logical_device.pipeline );
         
-        VkDeviceSize offset = 0;
-        vkCmdBindVertexBuffers( this->logical_device.cmd_buffer, 0, 1, &this->logical_device.vertex_buffer, &offset ); 
+			VkDeviceSize offset = 0;
+			vkCmdBindVertexBuffers(*cmd_buffer, 0, 1, &this->logical_device.vertex_buffer.buffer, &offset ); 
         
-        
-        vkCmdDraw( this->logical_device.cmd_buffer , 4 , 1, 0, 0 );
+			vkCmdDraw(*cmd_buffer, 4 , 1, 0, 0 );
 
-        vkCmdEndRenderPass( this->logical_device.cmd_buffer );
+			vkCmdEndRenderPass(*cmd_buffer);
 
-        vk_res = vkEndCommandBuffer(this->logical_device.cmd_buffer);
-        assert(VK_SUCCESS == vk_res);
-
+			vk_res = vkEndCommandBuffer(*cmd_buffer);
+			assert(VK_SUCCESS == vk_res);
+			queued_count += 1;
+		}
+		submit_info.pCommandBuffers = cmd_buffer;
+		submit_info.pSignalSemaphores = &semaphores_rendering_finished[swapchain_available_image_index];
+		vkQueueWaitIdle(queue);
         vk_res = vkQueueSubmit(queue , 1 , &submit_info ,  VK_NULL_HANDLE );
         assert(VK_SUCCESS == vk_res);
         
-        vkQueuePresentKHR(queue , &present_info);
+		present_info.pImageIndices = &swapchain_available_image_index;
+		present_info.pWaitSemaphores = &semaphores_rendering_finished[swapchain_available_image_index];
+        vk_res = vkQueuePresentKHR(queue , &present_info);
+		assert(VK_SUCCESS == vk_res);
+
         std::chrono::milliseconds ms = std::chrono::duration_cast<std::chrono::milliseconds >(
         std::chrono::system_clock::now().time_since_epoch());
         now = ms.count();
     }
 }
+
+Vulkan::Buffer Vulkan::createBuffer(VkBufferUsageFlags usage, VkMemoryPropertyFlagBits memory_property , uint64_t data_size)
+{
+    Vulkan::Buffer buffer;
+    buffer.size = data_size;
+    VkBufferCreateInfo buffer_create_info = {
+        VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO,
+        nullptr,
+        0,
+        data_size,
+        usage,
+        VK_SHARING_MODE_EXCLUSIVE,
+        0,
+        nullptr
+    };
+    VkResult vk_res = vkCreateBuffer( this->logical_device.getDevice(), &buffer_create_info, nullptr, &buffer.buffer );
+    assert(VK_SUCCESS == vk_res);
+
+    VkMemoryRequirements buffer_memory_requirements;
+    vkGetBufferMemoryRequirements( this->logical_device.getDevice() , buffer.buffer, &buffer_memory_requirements );
+
+	vk_res = VK_RESULT_MAX_ENUM; //Trash value
+    VkPhysicalDeviceMemoryProperties memory_properties = this->current_physical_device->getDeviceMemoryProperties(); 
+    for( uint32_t i = 0; i < memory_properties.memoryTypeCount; ++i ) 
+    {
+        if( (buffer_memory_requirements.memoryTypeBits & (1 << i)) &&
+            ((memory_properties.memoryTypes[i].propertyFlags & memory_property) == memory_property) ) 
+            {
+                VkMemoryAllocateInfo memory_allocate_info = {
+                    VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO,
+                    VK_NULL_HANDLE,
+                    buffer_memory_requirements.size,
+                    i
+                };
+
+            vk_res = vkAllocateMemory( this->logical_device.getDevice() , &memory_allocate_info, VK_NULL_HANDLE , &buffer.memory ); 
+        }
+    }
+	assert(VK_SUCCESS == vk_res);
+
+    vk_res = vkBindBufferMemory( this->logical_device.getDevice() , buffer.buffer , buffer.memory, 0 );
+    assert(VK_SUCCESS == vk_res);
+
+    return buffer;
+}
+
 Vulkan::~Vulkan()
 {
     glfwTerminate();
