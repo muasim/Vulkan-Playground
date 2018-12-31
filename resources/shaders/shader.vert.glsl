@@ -11,7 +11,6 @@ out gl_PerVertex
 layout(location = 0) out vec4 v_Color;
 
 void main() {
-    vec2 pos[3] = vec2[3]( vec2(-0.7, 0.7), vec2(0.7, 0.7), vec2(0.0, -0.7) );
-    gl_Position = vec4( pos[gl_VertexIndex], 0.0, 1.0 );
-	v_Color = i_Color;
+    gl_Position = i_Position;
+    v_Color = i_Color;
 }

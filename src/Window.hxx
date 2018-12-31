@@ -33,6 +33,7 @@ class Window
                 const uint32_t getHeight(void) const;
                 void setWindowSize(uint32_t width , uint32_t height);
                 void setMonitor(const Window::Monitor* owner = nullptr);
+                void setFullscreen(const bool value);
         };
         GLFWwindow* createWindow(void);
         

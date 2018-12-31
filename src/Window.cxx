@@ -45,6 +45,10 @@ void Window::WindowProperties::setMonitor(const Window::Monitor* owner)
     }
     else this->owner = Window::primary_monitor;
 }
+void Window::WindowProperties::setFullscreen(const bool value ) 
+{
+    this->fullscreen = value;
+}
 Window::Window()
 {
     int monitor_count;
@@ -101,7 +105,6 @@ GLFWwindow* Window::createWindow()
             }
     }
     
-    std::cout << this->properties.width;
     glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
     // glfwWindowHint(GLFW_VISIBLE, GLFW_FALSE);
     this->window = glfwCreateWindow(this->properties.width,
